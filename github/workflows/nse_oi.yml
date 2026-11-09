@@ -1,0 +1,38 @@
+name: NSE OI Data
+
+on:
+  schedule:
+    - cron: "30 15 * * 1-5"   # raat 9:00 baje IST
+    - cron: "30 18 * * 1-5"   # raat 12:00 baje IST (catch-up)
+  workflow_dispatch:
+    inputs:
+      start_date:
+        description: "Backfill start (YYYY-MM-DD) - khaali chhodo to pichhle 7 din"
+        required: false
+      end_date:
+        description: "Backfill end (YYYY-MM-DD) - khaali chhodo to aaj tak"
+        required: false
+
+permissions:
+  contents: write
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Fetch NSE data
+        env:
+          START_DATE: ${{ github.event.inputs.start_date }}
+          END_DATE: ${{ github.event.inputs.end_date }}
+        run: python fetch_oi.py
+      - name: Save data
+        if: always()
+        run: |
+          git config user.name "oi-bot"
+          git config user.email "oi-bot@users.noreply.github.com"
+          git add oi_history.csv
+          git diff --cached --quiet || (git commit -m "update OI data" && git push)
